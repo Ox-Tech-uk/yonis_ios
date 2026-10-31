@@ -1,0 +1,135 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+
+import '../../../../app/di/dependency_injection.dart';
+import '../../../../app/styles/app_colors.dart';
+import '../../../../app/styles/app_spacing.dart';
+import '../../../../app/widgets/app_skeleton.dart';
+import '../cubit/doctor_profile_cubit.dart';
+import '../cubit/doctors_cubit.dart';
+import '../cubit/reels_cubit.dart';
+import '../cubit/services_cubit.dart';
+import '../cubit/sliders_cubit.dart';
+import '../cubit/testimonials_cubit.dart';
+import '../widgets/book_service_bottom_sheet.dart';
+import '../widgets/home_about_card.dart';
+import '../widgets/home_hero_section.dart';
+import '../widgets/home_reels_section.dart';
+import '../widgets/home_specialties_section.dart';
+import '../widgets/home_testimonials_section.dart';
+
+class HomePage extends StatelessWidget {
+  const HomePage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider<DoctorsCubit>.value(
+          value: getIt<DoctorsCubit>()..load(),
+        ),
+        BlocProvider<SlidersCubit>(
+          create: (_) => getIt<SlidersCubit>()..load(),
+        ),
+        BlocProvider<DoctorProfileCubit>(
+          create: (_) => getIt<DoctorProfileCubit>()..load(),
+        ),
+        BlocProvider<ServicesCubit>(
+          // Warm both tabs: online displays first in the sheet, clinic
+          // is preloaded silently so switching tabs is instant.
+          create: (_) => getIt<ServicesCubit>()
+            ..load('online')
+            ..preload('clinic'),
+        ),
+        BlocProvider<ReelsCubit>(
+          create: (_) => getIt<ReelsCubit>()..load(),
+        ),
+        BlocProvider<TestimonialsCubit>(
+          create: (_) => getIt<TestimonialsCubit>()..load(),
+        ),
+      ],
+      child: Scaffold(
+        backgroundColor: AppColors.background,
+        body: SafeArea(
+          child: Builder(
+            builder: (innerContext) => RefreshIndicator(
+              color: AppColors.primary,
+              onRefresh: () => _refreshAll(innerContext),
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: Column(
+                  children: [
+                    BlocBuilder<SlidersCubit, SlidersState>(
+                      builder: (context, state) {
+                        return switch (state) {
+                          SlidersInitial() || SlidersLoading() =>
+                            const HomeHeroSkeleton(),
+                          SlidersLoaded(:final sliders) => HomeHeroSection(
+                              sliders: sliders,
+                              onBookTap: () =>
+                                  BookServiceBottomSheet.show(innerContext),
+                              onAboutTap: () {
+                                // TODO: navigate to about
+                              },
+                            ),
+                          SlidersError() => const SizedBox.shrink(),
+                        };
+                      },
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                    BlocBuilder<DoctorProfileCubit, DoctorProfileState>(
+                      builder: (context, state) {
+                        return switch (state) {
+                          DoctorProfileInitial() || DoctorProfileLoading() =>
+                            const HomeAboutSkeleton(),
+                          DoctorProfileLoaded(:final profile) =>
+                            HomeAboutCard(
+                              title: profile.title,
+                              bio: profile.bio,
+                            ),
+                          DoctorProfileError() => const SizedBox.shrink(),
+                        };
+                      },
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                    BlocBuilder<DoctorProfileCubit, DoctorProfileState>(
+                      builder: (context, state) {
+                        return switch (state) {
+                          DoctorProfileInitial() || DoctorProfileLoading() =>
+                            const HomeSpecialtiesSkeleton(),
+                          DoctorProfileLoaded(:final profile) =>
+                            HomeSpecialtiesSection(
+                              specialties: profile.specialties,
+                            ),
+                          DoctorProfileError() => const SizedBox.shrink(),
+                        };
+                      },
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                    const HomeReelsSection(),
+                    const SizedBox(height: AppSpacing.lg),
+                    const HomeTestimonialsSection(),
+                    const SizedBox(height: AppSpacing.xl),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Pull-to-refresh: refetch every home section.
+Future<void> _refreshAll(BuildContext context) {
+  return Future.wait([
+    context.read<DoctorsCubit>().load(forceRefresh: true),
+    context.read<SlidersCubit>().load(),
+    context.read<DoctorProfileCubit>().load(),
+    context.read<ServicesCubit>().load('online', forceRefresh: true),
+    context.read<ServicesCubit>().preload('clinic', forceRefresh: true),
+    context.read<ReelsCubit>().load(),
+    context.read<TestimonialsCubit>().load(),
+  ]);
+}

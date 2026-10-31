@@ -1,0 +1,259 @@
+import 'package:easy_localization/easy_localization.dart';
+import 'package:flutter/material.dart';
+
+import '../../../../app/localization/locale_direction.dart';
+import '../../../../app/localization/locale_keys.g.dart';
+import '../../../../app/styles/app_colors.dart';
+import '../../../../app/styles/app_sizes.dart';
+import '../../../../app/styles/app_spacing.dart';
+import '../../../../app/styles/app_text_styles.dart';
+import '../../../../app/widgets/bootstrap_icon_mapper.dart';
+
+class ServiceOptionCard extends StatelessWidget {
+  const ServiceOptionCard({
+    required this.title,
+    required this.description,
+    required this.price,
+    required this.onTap,
+    this.iconType = ServiceOptionIconType.clinic,
+    this.bootstrapIcon,
+    this.iconUrl,
+    super.key,
+  });
+
+  final String title;
+  final String description;
+  final String price;
+  final VoidCallback onTap;
+  final ServiceOptionIconType iconType;
+
+  /// Bootstrap icon name from the API (e.g. "bi-hospital").
+  final String? bootstrapIcon;
+
+  /// Optional absolute icon image URL from the API.
+  final String? iconUrl;
+
+  @override
+  Widget build(BuildContext context) {
+    // Icon size: ~12% of screen width, capped
+    final iconSize =
+        (MediaQuery.sizeOf(context).width * 0.12).clamp(40.0, 56.0);
+
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: AppColors.primary.withValues(alpha: 0.35),
+          width: 1.5,
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        textDirection: context.localeTextDirection,
+        children: [
+          _buildIcon(iconSize),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  title,
+                  textAlign: TextAlign.start,
+                  style: AppTextStyles.title.copyWith(
+                    color: AppColors.textPrimary,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  description,
+                  textAlign: TextAlign.start,
+                  style: AppTextStyles.body.copyWith(
+                    color: AppColors.textSecondary,
+                    height: 1.6,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  price,
+                  textAlign: TextAlign.start,
+                  style: AppTextStyles.body.copyWith(
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                SizedBox(
+                  width: double.infinity,
+                  height: AppSizes.buttonHeight,
+                  child: FilledButton(
+                    onPressed: onTap,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      shape: const StadiumBorder(),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.md,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Flexible(
+                          child: Text(
+                            context.tr(LocaleKeys.home_bookService_startNow),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTextStyles.button
+                                .copyWith(color: AppColors.white),
+                          ),
+                        ),
+                        const SizedBox(width: AppSpacing.xs),
+                        const _AnimatedStartArrow(),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildIcon(double size) {
+    // 1. Remote image wins when the API provides one.
+    if (iconUrl != null && iconUrl!.trim().isNotEmpty) {
+      return Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          color: AppColors.primary.withValues(alpha: 0.12),
+          shape: BoxShape.circle,
+          border: Border.all(color: AppColors.primary, width: 1.5),
+        ),
+        child: ClipOval(
+          child: Image.network(
+            iconUrl!.trim(),
+            width: size,
+            height: size,
+            fit: BoxFit.cover,
+            errorBuilder: (_, _, _) => _backendIcon(size),
+          ),
+        ),
+      );
+    }
+    // 2. Bootstrap icon name (e.g. "bi-hospital").
+    if (bootstrapIcon != null && bootstrapIcon!.trim().isNotEmpty) {
+      return _backendIcon(size);
+    }
+    if (iconType == ServiceOptionIconType.clinic) {
+      return Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          color: AppColors.primary.withValues(alpha: 0.75),
+          shape: BoxShape.circle,
+        ),
+        child: Icon(Icons.expand_more,
+            color: AppColors.white, size: size * 0.55),
+      );
+    }
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: AppColors.primary.withValues(alpha: 0.12),
+        shape: BoxShape.circle,
+        border: Border.all(color: AppColors.primary, width: 2.5),
+      ),
+      child: Center(
+        child: Container(
+          width: size * 0.32,
+          height: size * 0.32,
+          decoration: const BoxDecoration(
+            color: AppColors.primary,
+            shape: BoxShape.circle,
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Circular badge rendering the API's Bootstrap icon via its closest
+  /// Material equivalent.
+  Widget _backendIcon(double size) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: AppColors.primary.withValues(alpha: 0.12),
+        shape: BoxShape.circle,
+        border: Border.all(
+          color: AppColors.primary.withValues(alpha: 0.35),
+          width: 1.5,
+        ),
+      ),
+      child: Icon(
+        bootstrapIconToMaterial(
+          bootstrapIcon,
+          isClinic: iconType == ServiceOptionIconType.clinic,
+        ),
+        color: AppColors.primary,
+        size: size * 0.5,
+      ),
+    );
+  }
+}
+
+enum ServiceOptionIconType { clinic, online }
+
+/// Forward-pointing arrow for the "start" CTA. It nudges toward the reading
+/// direction's forward edge (left in Arabic, right in English) to invite
+/// the tap.
+class _AnimatedStartArrow extends StatefulWidget {
+  const _AnimatedStartArrow();
+
+  @override
+  State<_AnimatedStartArrow> createState() => _AnimatedStartArrowState();
+}
+
+class _AnimatedStartArrowState extends State<_AnimatedStartArrow>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 900),
+  )..repeat(reverse: true);
+
+  late final Animation<double> _nudge = Tween<double>(
+    begin: 0,
+    end: 0.3,
+  ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Forward edge is left in Arabic, right in English.
+    final sign = context.isRtl ? -1.0 : 1.0;
+    return AnimatedBuilder(
+      animation: _nudge,
+      builder: (context, child) => FractionalTranslation(
+        translation: Offset(_nudge.value * sign, 0),
+        child: child,
+      ),
+      child: Icon(
+        context.isRtl ? Icons.arrow_back_rounded : Icons.arrow_forward_rounded,
+        size: 16,
+        color: AppColors.white,
+      ),
+    );
+  }
+}

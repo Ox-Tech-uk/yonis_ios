@@ -1,0 +1,52 @@
+import '../../../../core/error/app_exception.dart';
+import '../../../../core/error/failure_mapper.dart';
+import '../../../../core/result/result.dart';
+import '../../domain/entities/service.dart';
+import '../../domain/repositories/services_repository.dart';
+import '../sources/services_remote_data_source.dart';
+
+class ServicesRepositoryImpl implements ServicesRepository {
+  const ServicesRepositoryImpl({
+    required ServicesRemoteDataSource remoteDataSource,
+  }) : _remoteDataSource = remoteDataSource;
+
+  final ServicesRemoteDataSource _remoteDataSource;
+
+  @override
+  Future<Result<List<Service>>> getClinicServices() async {
+    try {
+      final dto = await _remoteDataSource.getClinicServices();
+      return Success(
+        dto.services
+            .map(
+              (item) => item.toEntity(
+                fallbackCurrency: dto.currency,
+                fallbackCurrencySymbol: dto.currencySymbol,
+              ),
+            )
+            .toList(growable: false),
+      );
+    } on AppException catch (exception) {
+      return FailureResult(FailureMapper.map(exception));
+    }
+  }
+
+  @override
+  Future<Result<List<Service>>> getOnlineServices() async {
+    try {
+      final dto = await _remoteDataSource.getOnlineServices();
+      return Success(
+        dto.services
+            .map(
+              (item) => item.toEntity(
+                fallbackCurrency: dto.currency,
+                fallbackCurrencySymbol: dto.currencySymbol,
+              ),
+            )
+            .toList(growable: false),
+      );
+    } on AppException catch (exception) {
+      return FailureResult(FailureMapper.map(exception));
+    }
+  }
+}
